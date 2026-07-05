@@ -8,7 +8,7 @@ pub struct NeuralNetwork {
 }
 
 impl NeuralNetwork {
-    fn compute(&self, image: [f64; 784]) -> [f64; 10] {
+    pub fn predict(&self, image: [f64; 784]) -> [f64; 10] {
         let hidden_layer = self.hidden_layer.feed_forward(image);
         let second_hidden_layer = self.second_hidden_layer.feed_forward(hidden_layer);
 
