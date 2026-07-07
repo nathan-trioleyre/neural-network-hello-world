@@ -1,4 +1,5 @@
 use mnist::{Mnist, MnistBuilder};
+use rand::RngExt;
 
 pub struct ImageSet {
     pub images: Vec<[f64; 784]>,
@@ -8,8 +9,18 @@ pub struct ImageSet {
 const DATASET_LIMIT: u32 = 10_000;
 
 impl ImageSet {
-    pub fn select_digit(&self, digit: u8) -> Option<usize> {
-        self.labels.iter().position(|&label| label == digit)
+    pub fn select_random_digit(&self, digit: u8) -> Option<usize> {
+        let indices: Vec<usize> = self.labels.iter()
+            .enumerate()
+            .filter(|&(_, &label)| label == digit)
+            .map(|(index, _)| index)
+            .collect();
+        if indices.is_empty() {
+            None
+        } else {
+            let mut rng = rand::rng();
+            Some(indices[rng.random_range(0..indices.len())])
+        }
     }
 
     pub fn build_testing_set() -> Self {
