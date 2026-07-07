@@ -3,6 +3,7 @@ mod layer;
 mod math;
 mod mnist_dataset;
 mod neural_network;
+mod trainer;
 
 use color_eyre::eyre::Result;
 

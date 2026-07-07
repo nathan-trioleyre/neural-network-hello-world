@@ -22,7 +22,7 @@ impl Default for NeuralNetwork {
             hidden_layer_1: Default::default(),
             hidden_layer_2: Default::default(),
             expected_outputs,
-			learning_rate: 0.001
+            learning_rate: 0.001,
         }
     }
 }
@@ -53,18 +53,18 @@ impl NeuralNetwork {
         self.feed_forward(image).a3
     }
 
-    pub fn cost(&self, training_set: &ImageSet) -> f64 {
-        let total_cost: f64 = training_set
+    pub fn loss(&self, training_set: &ImageSet) -> f64 {
+        let total_loss: f64 = training_set
             .images
             .iter()
             .zip(training_set.labels.iter())
-            .map(|(image, expected)| self.single_cost(image, self.get_expected_output(*expected)))
+            .map(|(image, expected)| self.single_loss(image, self.get_expected_output(*expected)))
             .sum();
 
-        total_cost / training_set.images.len() as f64
+        total_loss / training_set.images.len() as f64
     }
 
-    fn single_cost(&self, image: &[f64; 784], expected: &[f64; 10]) -> f64 {
+    fn single_loss(&self, image: &[f64; 784], expected: &[f64; 10]) -> f64 {
         self.predict(&image)
             .iter()
             .zip(expected.iter())
@@ -85,9 +85,12 @@ impl NeuralNetwork {
             let d2 = self.hidden_layer_2.previous_delta(&d3, &feed.a2);
             let d1 = self.hidden_layer_1.previous_delta(&d2, &feed.a1);
 
-            self.hidden_layer_2.update_layer(&d3, &feed.a2, self.learning_rate);
-            self.hidden_layer_1.update_layer(&d2, &feed.a1, self.learning_rate);
-            self.hidden_layer.update_layer(&d1, &image, self.learning_rate);
+            self.hidden_layer_2
+                .update_layer(&d3, &feed.a2, self.learning_rate);
+            self.hidden_layer_1
+                .update_layer(&d2, &feed.a1, self.learning_rate);
+            self.hidden_layer
+                .update_layer(&d1, &image, self.learning_rate);
         }
     }
 }

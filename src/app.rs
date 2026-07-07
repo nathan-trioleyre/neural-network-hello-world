@@ -1,13 +1,4 @@
-use std::{
-    fmt::Display,
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-        mpsc::{self, Receiver},
-    },
-    thread,
-    time::Duration,
-};
+use std::{fmt::Display, sync::Arc, time::Duration};
 
 use color_eyre::eyre::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, poll};
@@ -24,7 +15,7 @@ use ratatui::{
     },
 };
 
-use crate::{mnist_dataset::ImageSet, neural_network::NeuralNetwork};
+use crate::{mnist_dataset::ImageSet, neural_network::NeuralNetwork, trainer::Trainer};
 
 #[derive(PartialEq, Clone, Copy)]
 enum AppTab {
@@ -55,12 +46,6 @@ impl Display for TrainingState {
     }
 }
 
-pub struct TrainingUpdate {
-    pub current_epoch: usize,
-    pub cost: f64,
-    pub network: NeuralNetwork,
-}
-
 pub struct App {
     network: NeuralNetwork,
     testing_set: Arc<ImageSet>,
@@ -76,9 +61,8 @@ pub struct App {
     training_state: TrainingState,
     current_epoch: usize,
     total_epochs: usize,
-    cost: Option<f64>,
-    receiver: Option<Receiver<TrainingUpdate>>,
-    is_training: Arc<AtomicBool>,
+    loss: Option<f64>,
+    trainer: Trainer,
 }
 
 impl Default for App {
@@ -94,9 +78,8 @@ impl Default for App {
             training_state: TrainingState::NotStarted,
             current_epoch: 0,
             total_epochs: 10,
-            cost: None,
-            receiver: None,
-            is_training: Arc::new(AtomicBool::new(false)),
+            loss: None,
+            trainer: Default::default(),
         }
     }
 }
@@ -114,17 +97,15 @@ impl App {
 
     fn update(&mut self) {
         if self.training_state == TrainingState::Running {
-            if let Some(receiver) = &self.receiver {
-                while let Ok(training_update) = receiver.try_recv() {
-                    self.current_epoch = training_update.current_epoch;
-                    self.cost = Some(training_update.cost);
-                    self.network = training_update.network;
-                }
+            if let Some(training_update) = self.trainer.try_recv() {
+                self.current_epoch = training_update.current_epoch;
+                self.loss = Some(training_update.loss);
+                self.network = training_update.network;
+            }
 
-                if self.current_epoch >= self.total_epochs {
-                    self.training_state = TrainingState::Finished;
-                    self.is_training.store(false, Ordering::SeqCst);
-                }
+            if self.current_epoch >= self.total_epochs {
+                self.training_state = TrainingState::Finished;
+                self.trainer.pause();
             }
         }
     }
@@ -144,15 +125,21 @@ impl App {
 
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
-            KeyCode::Char('q') => self.should_exit = true,
+            KeyCode::Char('q') => {
+                self.trainer.pause();
+                self.should_exit = true;
+            }
             KeyCode::Char('r') => {
                 if self.active_tab == AppTab::Prediction {
                     let mut rng = rand::rng();
                     self.selected_digit = rng.random_range(0..10);
                 }
 
-                if self.active_tab == AppTab::Training {
+                if self.active_tab == AppTab::Training
+                    && self.training_state != TrainingState::Running
+                {
                     self.network = Default::default();
+                    self.training_state = TrainingState::NotStarted;
                 }
             }
             KeyCode::Char('1') => self.active_tab = AppTab::Prediction,
@@ -173,52 +160,23 @@ impl App {
 
                 if self.active_tab == AppTab::Training {
                     match self.training_state {
-                        TrainingState::NotStarted
-                        | TrainingState::Paused
-                        | TrainingState::Finished => {
-                            if self.training_state == TrainingState::Finished {
-                                self.current_epoch = 0;
-                            }
-
+                        TrainingState::NotStarted | TrainingState::Paused => {
                             self.training_state = TrainingState::Running;
-
-                            self.is_training.store(true, Ordering::SeqCst);
-
-                            let (sender, receiver) = mpsc::channel::<TrainingUpdate>();
-
-                            self.receiver = Some(receiver);
-
-                            let training_set_clone = Arc::clone(&self.training_set);
-                            let mut training_network = self.network.clone();
-                            let current_epoch_clone = self.current_epoch;
-                            let total_epochs_clone = self.total_epochs;
-                            let is_training_clone = Arc::clone(&self.is_training);
-
-                            thread::spawn(move || {
-                                for i in current_epoch_clone..total_epochs_clone {
-                                    if is_training_clone.load(Ordering::SeqCst) == false {
-                                        break;
-                                    }
-
-                                    training_network.train(&training_set_clone);
-                                    let cost = training_network.cost(&training_set_clone);
-
-                                    if sender
-                                        .send(TrainingUpdate {
-                                            current_epoch: i + 1,
-                                            cost,
-                                            network: training_network.clone(),
-                                        })
-                                        .is_err()
-                                    {
-                                        break;
-                                    }
-                                }
-                            });
+                            self.trainer.start(
+                                self.network.clone(),
+                                Arc::clone(&self.training_set),
+                                Arc::clone(&self.testing_set),
+                                self.current_epoch,
+                                self.total_epochs,
+                            );
                         }
                         TrainingState::Running => {
                             self.training_state = TrainingState::Paused;
-                            self.is_training.store(false, Ordering::SeqCst);
+                            self.trainer.pause();
+                        }
+                        TrainingState::Finished => {
+                            self.current_epoch = 0;
+                            self.training_state = TrainingState::NotStarted;
                         }
                     };
                 }
@@ -352,9 +310,9 @@ impl App {
 
         let metrics = Paragraph::new(vec![
             Line::from(vec![
-                "Current Cost: ".into(),
-                if let Some(cost) = self.cost {
-                    cost.to_string().into()
+                "Current Loss: ".into(),
+                if let Some(loss) = self.loss {
+                    loss.to_string().into()
                 } else {
                     "".into()
                 },
