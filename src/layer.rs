@@ -1,9 +1,9 @@
-use crate::math::sigmoid;
+use crate::math::{sigmoid, sigmoid_derivation};
 use rand::RngExt;
 
 pub struct Layer<const IN_SIZE: usize, const OUT_SIZE: usize> {
-    weights: [[f64; IN_SIZE]; OUT_SIZE],
-    biases: [f64; OUT_SIZE],
+    pub weights: [[f64; IN_SIZE]; OUT_SIZE],
+    pub biases: [f64; OUT_SIZE],
 }
 
 impl<const IN_SIZE: usize, const OUT_SIZE: usize> Default for Layer<IN_SIZE, OUT_SIZE> {
@@ -19,12 +19,12 @@ impl<const IN_SIZE: usize, const OUT_SIZE: usize> Default for Layer<IN_SIZE, OUT
 }
 
 impl<const IN_SIZE: usize, const OUT_SIZE: usize> Layer<IN_SIZE, OUT_SIZE> {
-	pub fn feed_forward(&self, input: [f64; IN_SIZE]) -> [f64; OUT_SIZE] {
+	pub fn feed_forward(&self, input: &[f64; IN_SIZE]) -> [f64; OUT_SIZE] {
 		let mut output = [0.; OUT_SIZE];
 
 		for (i, n) in output.iter_mut().enumerate() {
 			let scalar_product: f64 = input.iter()
-				.zip(self.weights[i])
+				.zip(self.weights[i].iter())
 				.map(|(x, y)| x * y)
 				.sum();
 
@@ -32,5 +32,26 @@ impl<const IN_SIZE: usize, const OUT_SIZE: usize> Layer<IN_SIZE, OUT_SIZE> {
 		}
 
 		output
+	}
+
+	pub fn update_layer(&mut self, delta: &[f64; OUT_SIZE], input_activation: &[f64; IN_SIZE], eta: f64) {
+		for j in 0..OUT_SIZE {
+			self.biases[j] -= eta * delta[j];
+
+			for k in 0..IN_SIZE {
+				self.weights[j][k] -= eta * delta[j] * input_activation[k];
+			}
+		}
+	}
+
+	pub fn previous_delta(&self, current_delta: &[f64; OUT_SIZE], previous_activation: &[f64; IN_SIZE]) -> [f64; IN_SIZE] {
+		std::array::from_fn(|j| {
+			let s: f64 = self.weights.iter()
+                .zip(current_delta.iter())
+                .map(|(w, d)| w[j] * d)
+                .sum();
+                
+            s * sigmoid_derivation(previous_activation[j])
+		})
 	}
 }
