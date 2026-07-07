@@ -7,7 +7,7 @@ use std::{
     thread,
 };
 
-use crate::{mnist_dataset::ImageSet, neural_network::NeuralNetwork};
+use crate::{mnist_dataset::ImageSet, neural::network::NeuralNetwork};
 
 pub struct TrainingUpdate {
     pub current_epoch: usize,

@@ -1,4 +1,5 @@
-use crate::{layer::Layer, math::sigmoid_derivate, mnist_dataset::ImageSet};
+use super::{layer::Layer, math::sigmoid_derivate};
+use crate::mnist_dataset::ImageSet;
 
 #[derive(Clone, Debug)]
 pub struct NeuralNetwork {

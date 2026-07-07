@@ -1,9 +1,8 @@
 mod app;
-mod layer;
-mod math;
 mod mnist_dataset;
-mod neural_network;
+mod neural;
 mod trainer;
+mod ui;
 
 use color_eyre::eyre::Result;
 

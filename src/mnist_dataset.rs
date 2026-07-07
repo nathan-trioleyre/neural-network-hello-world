@@ -10,7 +10,9 @@ const DATASET_LIMIT: u32 = 10_000;
 
 impl ImageSet {
     pub fn select_random_digit(&self, digit: u8) -> Option<usize> {
-        let indices: Vec<usize> = self.labels.iter()
+        let indices: Vec<usize> = self
+            .labels
+            .iter()
             .enumerate()
             .filter(|&(_, &label)| label == digit)
             .map(|(index, _)| index)

@@ -1,4 +1,4 @@
-use crate::math::{sigmoid, sigmoid_derivate};
+use super::math::{sigmoid, sigmoid_derivate};
 use rand::RngExt;
 
 #[derive(Clone, Debug)]
