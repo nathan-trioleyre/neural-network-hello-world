@@ -1,6 +1,7 @@
 use crate::math::{sigmoid, sigmoid_derivate};
 use rand::RngExt;
 
+#[derive(Clone, Debug)]
 pub struct Layer<const IN_SIZE: usize, const OUT_SIZE: usize> {
     pub weights: [[f64; IN_SIZE]; OUT_SIZE],
     pub biases: [f64; OUT_SIZE],

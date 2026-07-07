@@ -1,10 +1,12 @@
 use crate::{layer::Layer, math::sigmoid_derivate, mnist_dataset::ImageSet};
 
+#[derive(Clone, Debug)]
 pub struct NeuralNetwork {
     hidden_layer: Layer<784, 16>,
     hidden_layer_1: Layer<16, 16>,
     hidden_layer_2: Layer<16, 10>,
     expected_outputs: [[f64; 10]; 10],
+    pub learning_rate: f64,
 }
 
 fn build_expected_output(expected: usize) -> [f64; 10] {
@@ -20,6 +22,7 @@ impl Default for NeuralNetwork {
             hidden_layer_1: Default::default(),
             hidden_layer_2: Default::default(),
             expected_outputs,
+			learning_rate: 0.001
         }
     }
 }
@@ -70,8 +73,6 @@ impl NeuralNetwork {
     }
 
     pub fn train(&mut self, test_set: &ImageSet) {
-        let eta = 0.01;
-
         for (image, expected) in test_set.images.iter().zip(&test_set.labels) {
             let feed = self.feed_forward(image);
 
@@ -84,9 +85,9 @@ impl NeuralNetwork {
             let d2 = self.hidden_layer_2.previous_delta(&d3, &feed.a2);
             let d1 = self.hidden_layer_1.previous_delta(&d2, &feed.a1);
 
-            self.hidden_layer_2.update_layer(&d3, &feed.a2, eta);
-            self.hidden_layer_1.update_layer(&d2, &feed.a1, eta);
-            self.hidden_layer.update_layer(&d1, &image, eta);
+            self.hidden_layer_2.update_layer(&d3, &feed.a2, self.learning_rate);
+            self.hidden_layer_1.update_layer(&d2, &feed.a1, self.learning_rate);
+            self.hidden_layer.update_layer(&d1, &image, self.learning_rate);
         }
     }
 }

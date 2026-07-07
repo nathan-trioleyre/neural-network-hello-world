@@ -5,7 +5,7 @@ pub struct ImageSet {
     pub labels: Vec<u8>,
 }
 
-const DATASET_LIMIT: u32 = 100;
+const DATASET_LIMIT: u32 = 10_000;
 
 impl ImageSet {
     pub fn select_digit(&self, digit: u8) -> Option<usize> {
