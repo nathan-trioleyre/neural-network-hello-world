@@ -15,13 +15,20 @@ use ratatui::{
 
 use crate::{mnist_dataset::ImageSet, neural_network::NeuralNetwork};
 
+#[derive(PartialEq, Clone, Copy)]
+enum AppTab {
+    Prediction = 0,
+    Training = 1,
+    Cost = 2,
+}
+
 pub struct App {
     network: NeuralNetwork,
     testing_set: ImageSet,
     training_set: ImageSet,
     selected_digit: u8,
     prediction: Option<u8>,
-    active_tab: usize,
+    active_tab: AppTab,
     should_exit: bool,
 }
 
@@ -33,7 +40,7 @@ impl Default for App {
             training_set: ImageSet::build_training_set(),
             selected_digit: Default::default(),
             prediction: None,
-            active_tab: Default::default(),
+            active_tab: AppTab::Prediction,
             should_exit: Default::default(),
         }
     }
@@ -63,12 +70,14 @@ impl App {
     fn handle_key_event(&mut self, key_event: KeyEvent) {
         match key_event.code {
             KeyCode::Char('q') => self.should_exit = true,
-            KeyCode::Char('r') if self.active_tab == 0 => {
+            KeyCode::Char('r') if self.active_tab == AppTab::Prediction => {
                 let mut rng = rand::rng();
                 self.selected_digit = rng.random_range(0..10);
             }
-            KeyCode::Char('1') => self.active_tab = 0,
-            KeyCode::Enter if self.active_tab == 0 => {
+            KeyCode::Char('1') => self.active_tab = AppTab::Prediction,
+            KeyCode::Char('2') => self.active_tab = AppTab::Training,
+            KeyCode::Char('3') => self.active_tab = AppTab::Cost,
+            KeyCode::Enter if self.active_tab == AppTab::Prediction => {
                 if let Some(index) = self.testing_set.select_digit(self.selected_digit) {
                     let image = self.testing_set.images[index];
                     let output_activations = self.network.predict(&image);
@@ -80,18 +89,14 @@ impl App {
                         .map(|(index, _)| index as u8);
                 }
             }
-            KeyCode::Up if self.active_tab == 0 => {
+            KeyCode::Up if self.active_tab == AppTab::Prediction => {
                 self.selected_digit = (self.selected_digit + 1) % 10;
             }
-            KeyCode::Down if self.active_tab == 0 => {
+            KeyCode::Down if self.active_tab == AppTab::Prediction => {
                 self.selected_digit = (self.selected_digit + 9) % 10;
             }
             _ => {}
         }
-    }
-
-    fn exit(&mut self) {
-        self.should_exit = true;
     }
 
     fn draw(&self, frame: &mut Frame) {
@@ -101,7 +106,9 @@ impl App {
         self.draw_header(frame, chunks[0]);
 
         match self.active_tab {
-            0 => self.draw_predict_tab(frame, chunks[1]),
+            AppTab::Prediction => self.draw_predict_tab(frame, chunks[1]),
+            AppTab::Training => self.draw_train_tab(frame, chunks[1]),
+            AppTab::Cost => self.draw_cost_tab(frame, chunks[1]),
             _ => unreachable!(),
         }
     }
@@ -110,7 +117,7 @@ impl App {
         let tabs_title = Line::from(vec![" Hello ".blue(), "Neural ".white(), "Network! ".red()]);
 
         let tabs = Tabs::new(vec!["[1] Predict", "[2] Train", "[3] Cost"])
-            .select(self.active_tab)
+            .select(self.active_tab as usize)
             .block(Block::bordered().title(tabs_title));
 
         frame.render_widget(tabs, area);
@@ -171,5 +178,13 @@ impl App {
             ),
             main_chunks[1],
         );
+    }
+
+    fn draw_train_tab(&self, frame: &mut Frame, area: Rect) {
+        todo!();
+    }
+
+    fn draw_cost_tab(&self, frame: &mut Frame, area: Rect) {
+        todo!();
     }
 }
